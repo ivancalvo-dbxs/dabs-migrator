@@ -4,16 +4,25 @@ Lakebase Autoscaling branch — copy-on-write Postgres branch within a project.
 
 Docs: https://docs.databricks.com/aws/en/dev-tools/bundles/resources#postgres_branch
 
-## Skeleton
+## Complete schema reference
+
+Required fields: `branch_id`, `parent`
 
 ```yaml
 resources:
   postgres_branches:
-    {{ branch_name }}:
-      name: {{ branch_name }}
-      project_name: {{ project_name }}
-      parent_branch_name: main
-      protected: false
+    <postgres_branch_name>:
+      branch_id: <string>  # REQUIRED | string
+      expire_time:  # object
+      is_protected: <bool>  # bool
+      lifecycle:  # object
+        prevent_destroy: <bool>  # bool | Lifecycle setting to prevent the resource from being destroyed.
+      no_expiry: <bool>  # bool
+      parent: <string>  # REQUIRED | string
+      source_branch: <string>  # string
+      source_branch_lsn: <string>  # string
+      source_branch_time:  # object
+      ttl: <string>  # string
 ```
 
 ## What to ask the user

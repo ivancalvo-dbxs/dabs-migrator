@@ -6,6 +6,44 @@ Entries are reverse-chronological. Each entry: date, what changed, **why** (with
 
 ---
 
+## 2026-05-06 — Incremental mode: add resources to an existing project
+
+**Change:** Workflow step 2 now detects whether `databricks.yml` already exists. If it does, the skill enters **incremental mode** — it only generates new resource YAML files, source code, and test stubs for the requested assets, skipping root folder creation, `databricks.yml`, CI/CD pipelines, and supporting files. A conflict is reported if a resource file for the named asset already exists.
+
+**Why:** Previously every invocation assumed a greenfield scaffold. If a user migrated job_1 and warehouse_1 first, then later wanted to add alert_1, the skill would regenerate the entire project from scratch — overwriting CI/CD files, `databricks.yml`, and other resources. Incremental mode makes "add a resource" a safe, additive operation.
+
+**Where:**
+- `SKILL.md` workflow step 2 — new greenfield-vs-incremental branching logic.
+- `SKILL.md` steps 3, 5, 6 — tagged *(Greenfield only.)* with incremental-mode exceptions noted.
+- `SKILL.md` step 7 — reporting adjusted for incremental mode.
+- `SKILL.md` example interactions — added an incremental example alongside the existing greenfield one.
+
+---
+
+## 2026-05-06 — Skeleton sections removed; workflow step 4 uses schema reference
+
+**Change:** Removed the `## Skeleton` sections from all 23 resource `.md` files. Updated workflow step 4 to instruct the agent to map the asset's actual existing attributes against the `## Complete schema reference` rather than copy-pasting a skeleton or the full schema.
+
+**Why:** With the complete schema reference now present in every resource file, the old hand-written skeletons were redundant and could conflict with the authoritative field catalogue. Copying the entire schema verbatim into generated YAML is equally wrong — it produces files full of placeholder values for fields the asset doesn't use. The correct behavior is to include only the fields the asset actually has, validated against the schema.
+
+**Where:**
+- All 23 files under `dabs-migrator/resources/` — `## Skeleton` section removed.
+- `SKILL.md` workflow step 4 — rewritten to reference the schema as a field catalogue, not a copy-paste template.
+
+---
+
+## 2026-05-06 — Complete schema reference added to all 23 resource files
+
+**Change:** Added a `## Complete schema reference` section to every resource `.md` file, containing the full YAML skeleton with all available fields, types, required/deprecated/preview flags, and short descriptions — all derived from the authoritative `dabs-schema.json` (generated via `databricks bundle schema`).
+
+**Why:** The original hand-written skeletons only covered common fields. During real migrations the agent would omit valid fields or guess at field names/types, producing YAML that failed `bundle validate`. Having the full schema inline means the agent can look up any field without leaving the skill context.
+
+**Where:**
+- All 23 files under `dabs-migrator/resources/` — each gained a `## Complete schema reference` section between the existing skeleton/prose and `## What to ask the user`.
+- Existing example skeletons, prose, and "What to ask" sections are unchanged.
+
+---
+
 ## 2026-05-03 — Pipeline library entry kind: per-extension, not blanket
 
 **Change:** Reverted the earlier blanket "always `notebook:`" rule for `pipelines` libraries. New rule: `.py` sources use `notebook:`, `.sql` sources use `file:`.

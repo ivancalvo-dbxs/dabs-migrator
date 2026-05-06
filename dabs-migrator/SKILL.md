@@ -56,14 +56,16 @@ If any of these are missing, ask once before generating; default to GitHub Actio
 ## Workflow
 
 1. **Parse inputs.** Extract project name, the `<type>:<name>` resource list, and CI/CD tool. Confirm any missing required fields before proceeding.
-2. **Create root folder** named after the project. Never write outside it.
-3. **Generate `databricks.yml`** from `templates/databricks.yml.tmpl` — fills in `bundle.name`, `include:` globs, and `targets` (dev/staging/prod with `${var.workspace_host}` placeholder per target).
-4. **For each resource** in the input list, look up the corresponding reference under `resources/<type>.md`, copy the YAML skeleton into `resources/<type_plural>/<name>.yml`, and substitute the resource name. If the resource type owns source code (jobs, pipelines, apps, dashboards), also populate `src/<name>/`:
+2. **Detect mode — greenfield vs. incremental.** Check whether `databricks.yml` already exists in the target project folder.
+   - **Greenfield** (file absent): proceed through all steps below.
+   - **Incremental** (file present): the project already exists. Skip steps 3, 5, and 6. Go directly to step 4 for the new resources only. Never overwrite existing files — if a resource file for the named asset already exists, report a conflict and stop for that asset.
+3. **Create root folder** named after the project and **generate `databricks.yml`** from `templates/databricks.yml.tmpl` — fills in `bundle.name`, `include:` globs, and `targets` (dev/staging/prod with `${var.workspace_host}` placeholder per target). *(Greenfield only.)*
+4. **For each resource** in the input list, open `resources/<type>.md` and use its `## Complete schema reference` as the authoritative field catalogue. Build `resources/<type_plural>/<name>.yml` by mapping the asset's **actual existing attributes** onto the schema — include only the fields the asset uses, using the correct field names and types from the schema. Do not copy the complete schema verbatim and do not invent placeholder values for fields the asset does not have. If the resource type owns source code (jobs, pipelines, apps, dashboards), also populate `src/<name>/`:
    - **If migrating an existing asset** (the default case — the user named a real workspace asset): pull the original notebook(s) / script(s) and copy their content **verbatim** into `src/<name>/`. Preserve filenames, structure, comments, and logic exactly. Do **not** add headers like `# Originally sourced from: <path>` or replace any block with `# TODO: Replace with actual ingestion logic`. See the corresponding hard rule below.
-   - **If starting from scratch** (only when the user explicitly says so): create stub files using the layout described in that resource's reference.
-5. **Generate CI/CD files** from the user's chosen tool's reference under `cicd/<tool>.md`. Always emit at least: PR validation pipeline, staging deploy pipeline, prod deploy pipeline. All pipelines must follow the **CI/CD action contract** below.
-6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_<asset>.py` stubs, and a minimal `README.md` documenting how to deploy.
-7. **Report** what was generated: tree of created files and the next steps the user must take (fill in `${var.workspace_host}`, configure CI auth, etc.).
+   - **If starting from scratch** (only when the user explicitly says so): create minimal stub files and populate only the required fields (marked `REQUIRED` in the schema reference).
+5. **Generate CI/CD files** from the user's chosen tool's reference under `cicd/<tool>.md`. Always emit at least: PR validation pipeline, staging deploy pipeline, prod deploy pipeline. All pipelines must follow the **CI/CD action contract** below. *(Greenfield only.)*
+6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_<asset>.py` stubs, and a minimal `README.md` documenting how to deploy. *(Greenfield only — in incremental mode, only add `tests/test_<asset>.py` for the new resources.)*
+7. **Report** what was generated: tree of created/modified files. In incremental mode, explicitly list which files were added and confirm that no existing files were touched.
 
 ## CI/CD action contract
 
@@ -137,15 +139,27 @@ One reference doc per resource type lives under `resources/`. Read the relevant 
 - [templates/requirements.txt.tmpl](templates/requirements.txt.tmpl) — local dev dependencies
 - [templates/README.md.tmpl](templates/README.md.tmpl) — generated project README
 
-## Example interaction
+## Example interactions
+
+### Greenfield
 
 **User:** "I want to migrate @my_job_1 and @my_pipeline_1 to DABs, generate the project and for the CI/CD tool use GitHub Actions."
 
 **Output:** create the tree at the top of this file, with:
-- `resources/jobs/my_job_1.yml` from `resources/jobs.md` skeleton
-- `resources/pipelines/my_pipeline_1.yml` from `resources/pipelines.md` skeleton
+- `resources/jobs/my_job_1.yml` from `resources/jobs.md` following the complete schema available fields.
+- `resources/pipelines/my_pipeline_1.yml` from `resources/pipelines.md` following the complete schema available fields.
 - `src/my_job_1/notebook.py` and `src/my_pipeline_1/{bronze,silver,gold}.py` stubs
 - `.github/workflows/{deploy_to_staging,deploy_to_prod,pr_validate}.yml` from `cicd/github-actions.md`
 - `databricks.yml`, `requirements.txt`, `.gitignore`, `README.md`, `tests/test_my_job_1.py`, `tests/test_my_pipeline_1.py`
 
 Report the tree back and list TODOs (workspace host, CI auth secrets, fill in actual notebook logic).
+
+### Incremental (project already exists)
+
+**User:** "Add @my_alert_1 to the project."
+
+**Output:** detect that `databricks.yml` already exists, enter incremental mode, and only create:
+- `resources/alerts/my_alert_1.yml` (using the asset's actual attributes mapped against `resources/alerts.md`)
+- `tests/test_my_alert_1.py`
+
+All existing files — `databricks.yml`, CI/CD workflows, other resource YAMLs, `src/` directories — are left untouched. Report only the newly added files.
