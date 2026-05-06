@@ -46,7 +46,7 @@ If any of these are missing, ask once before generating; default to GitHub Actio
 │       ├── silver.py
 │       └── gold.py
 ├── tests/
-│   └── test_<asset>.py                 # pytest stub per asset
+│   └── test_unity_catalog.py           # single pytest file for Unity Catalog validation
 ├── databricks.yml                      # bundle entrypoint
 ├── requirements.txt                    # local dev deps
 ├── .gitignore
@@ -64,7 +64,7 @@ If any of these are missing, ask once before generating; default to GitHub Actio
    - **If migrating an existing asset** (the default case — the user named a real workspace asset): pull the original notebook(s) / script(s) and copy their content **verbatim** into `src/<name>/`. Preserve filenames, structure, comments, and logic exactly. Do **not** add headers like `# Originally sourced from: <path>` or replace any block with `# TODO: Replace with actual ingestion logic`. See the corresponding hard rule below.
    - **If starting from scratch** (only when the user explicitly says so): create minimal stub files and populate only the required fields (marked `REQUIRED` in the schema reference).
 5. **Generate CI/CD files** from the user's chosen tool's reference under `cicd/<tool>.md`. Always emit at least: PR validation pipeline, staging deploy pipeline, prod deploy pipeline. All pipelines must follow the **CI/CD action contract** below. *(Fresh start only.)*
-6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_<asset>.py` stubs, and a minimal `README.md` documenting how to deploy. *(Fresh start only — in incremental mode, only add `tests/test_<asset>.py` for the new resources.)*
+6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_unity_catalog.py` (copied from `templates/test_unity_catalog.py`), and a minimal `README.md` documenting how to deploy. *(Fresh start only.)*
 7. **Report** what was generated: tree of created/modified files. In incremental mode, explicitly list which files were added and confirm that no existing files were touched.
 
 ## CI/CD action contract
@@ -73,9 +73,11 @@ Every generated CI/CD pipeline (regardless of tool) must:
 
 1. **Install the Databricks CLI** — use the official installer/action for the tool (see `cicd/<tool>.md`).
 2. **Run `databricks bundle validate --output json`** — fail the pipeline on non-zero exit. The JSON output should be uploaded as a build artifact when the tool supports it.
-3. **Run `databricks bundle deploy -t <target>`** — only on the deploy pipelines, not on PR validation.
+3. **Run `databricks bundle deploy`** — only on the deploy pipelines, not on PR validation. The target is inferred from the `DATABRICKS_BUNDLE_ENV` environment variable (never use `-t`).
 
-PR validation runs steps 1–2 only. Staging deploys run 1–3 against `staging`. Prod deploys run 1–3 against `prod` and require manual approval / protected environment gating.
+Every step must also set `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` (sourced from CI/CD variables named `catalog` and `schema`) so the CLI resolves the bundle variables defined in `databricks.yml`.
+
+PR validation runs steps 1–2 only with `DATABRICKS_BUNDLE_ENV=staging`. Staging deploys run 1–3 with `DATABRICKS_BUNDLE_ENV=staging`. Prod deploys run 1–3 with `DATABRICKS_BUNDLE_ENV=prod` and require manual approval / protected environment gating.
 
 Reference: [Databricks bundle jobs tutorial](https://docs.databricks.com/aws/en/dev-tools/bundles/jobs-tutorial).
 
@@ -150,7 +152,7 @@ One reference doc per resource type lives under `resources/`. Read the relevant 
 - `resources/pipelines/my_pipeline_1.yml` from `resources/pipelines.md` following the complete schema available fields.
 - `src/my_job_1/notebook.py` and `src/my_pipeline_1/{bronze,silver,gold}.py` stubs
 - `.github/workflows/{deploy_to_staging,deploy_to_prod,pr_validate}.yml` from `cicd/github-actions.md`
-- `databricks.yml`, `requirements.txt`, `.gitignore`, `README.md`, `tests/test_my_job_1.py`, `tests/test_my_pipeline_1.py`
+- `databricks.yml`, `requirements.txt`, `.gitignore`, `README.md`, `tests/test_unity_catalog.py`
 
 Report the tree back and list TODOs (workspace host, CI auth secrets, fill in actual notebook logic).
 
@@ -160,6 +162,5 @@ Report the tree back and list TODOs (workspace host, CI auth secrets, fill in ac
 
 **Output:** detect that `databricks.yml` already exists, enter incremental mode, and only create:
 - `resources/alerts/my_alert_1.yml` (using the asset's actual attributes mapped against `resources/alerts.md`)
-- `tests/test_my_alert_1.py`
 
-All existing files — `databricks.yml`, CI/CD workflows, other resource YAMLs, `src/` directories — are left untouched. Report only the newly added files.
+All existing files — `databricks.yml`, CI/CD workflows, other resource YAMLs, `src/` directories, `tests/` — are left untouched. Report only the newly added files.

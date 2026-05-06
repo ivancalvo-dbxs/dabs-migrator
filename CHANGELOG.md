@@ -6,6 +6,53 @@ Entries are reverse-chronological. Each entry: date, what changed, **why** (with
 
 ---
 
+## 2026-05-06 — CI/CD variable naming: environment-scoped host and short bundle var names
+
+**Change:** Across all 6 CI/CD reference files, the stored variable names were simplified. `DATABRICKS_HOST_STAGING` and `DATABRICKS_HOST_PROD` were replaced by a single `DATABRICKS_HOST` that is scoped per CI/CD environment (GitHub environment secrets, Azure DevOps environment-scoped variable groups, GitLab environment-scoped variables, Bitbucket deployment variables, etc.). `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` in the secret store were renamed to `catalog` and `schema` — the `BUNDLE_VAR_` prefix is applied only at the pipeline mapping level (e.g. `BUNDLE_VAR_catalog: $(catalog)`).
+
+**Why:** The `BUNDLE_VAR_` prefix is a Databricks CLI convention for passing values into bundle variables at runtime — it doesn't need to leak into the CI/CD secret store naming. Similarly, per-environment CI/CD tools already scope secrets by environment, so `_STAGING` / `_PROD` suffixes on the host were redundant and forced users to manage more variables than necessary.
+
+**Where:**
+- All 6 files under `cicd/` — required variables tables and all env/export blocks updated.
+- `templates/README.md.tmpl` — CI/CD secrets section updated.
+- `SKILL.md` — CI/CD action contract note updated.
+
+---
+
+## 2026-05-06 — CI/CD: `DATABRICKS_BUNDLE_ENV` replaces `-t` flag; `BUNDLE_VAR_catalog`/`schema` added
+
+**Change:** Removed `-t staging` and `-t prod` flags from all `databricks bundle deploy` commands across all 6 CI/CD reference files. The target is now inferred from the `DATABRICKS_BUNDLE_ENV` environment variable, hardcoded per pipeline step. Added `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` environment variables to every pipeline step so the CLI resolves the `catalog` and `schema` bundle variables defined in `databricks.yml`.
+
+**Why:** Using an environment variable for the target instead of a CLI flag aligns with the Databricks CLI convention and makes the deploy command uniform across all stages (`databricks bundle deploy` everywhere). Adding `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` ensures bundle variable resolution works in CI — without them, the CLI would prompt or fail when `${var.catalog}` / `${var.schema}` are referenced in resource YAML.
+
+**Where:**
+- All 6 files under `cicd/` — deploy commands, env blocks, and required variables tables updated.
+- `SKILL.md` — CI/CD action contract rewritten (step 3 now says `databricks bundle deploy` without `-t`, plus `BUNDLE_VAR_` requirements).
+- `templates/README.md.tmpl` — CI/CD secrets section updated.
+
+---
+
+## 2026-05-06 — CI/CD: PAT token replaced with service principal auth; single test file; release workflow
+
+**Change:** Three changes applied together:
+1. Replaced `DATABRICKS_TOKEN` (PAT auth) with `DATABRICKS_CLIENT_ID` + `DATABRICKS_CLIENT_SECRET` (service principal auth) across all 6 CI/CD reference files.
+2. Replaced per-resource `tests/test_<asset>.py` stubs with a single `tests/test_unity_catalog.py` file (sourced from the canonical [sts-dabs-demo](https://github.com/databricks-solutions/databricks-dab-examples/blob/main/sts-dabs-demo/tests/test_unity_catalog.py) example project). Added `templates/test_unity_catalog.py` as the template.
+3. Added `.github/workflows/release.yml` to the repo root — on push to `main`, it auto-increments the version tag (v1.0 → v2.0 → v3.0), zips the `dabs-migrator/` folder, and publishes a GitHub release with the zip attached.
+
+**Why:**
+1. PAT tokens are tied to individual users and expire. Service principals are the recommended auth method for CI/CD automation — they're non-interactive, auditable, and can be scoped to specific workspaces.
+2. Per-resource test stubs added boilerplate with no real value. A single Unity Catalog validation test file gives users a working starting point they can extend, matching the canonical example project pattern.
+3. The skill is distributed as a zip download for manual upload to Databricks workspaces. Automating the release ensures every push to `main` produces a versioned, downloadable artifact.
+
+**Where:**
+- All 6 files under `cicd/` — secrets tables and env blocks updated (task 1).
+- `templates/test_unity_catalog.py` — new file (task 2).
+- `SKILL.md` — project layout, workflow step 6, and example interactions updated (task 2).
+- `.github/workflows/release.yml` — new file at repo root (task 3).
+- `templates/README.md.tmpl` — CI/CD secrets section updated (task 1).
+
+---
+
 ## 2026-05-06 — Incremental mode: add resources to an existing project
 
 **Change:** Workflow step 2 now detects whether `databricks.yml` already exists. If it does, the skill enters **incremental mode** — it only generates new resource YAML files, source code, and test stubs for the requested assets, skipping root folder creation, `databricks.yml`, CI/CD pipelines, and supporting files. A conflict is reported if a resource file for the named asset already exists.

@@ -6,9 +6,11 @@ Single `.gitlab-ci.yml` at repo root.
 
 | Variable | Scope | Masked |
 |---|---|---|
-| `DATABRICKS_HOST_STAGING` | staging env | yes |
-| `DATABRICKS_HOST_PROD` | prod env | yes |
-| `DATABRICKS_TOKEN` | both, protected | yes |
+| `DATABRICKS_HOST` | per environment (staging/prod) | yes |
+| `DATABRICKS_CLIENT_ID` | both, protected | yes |
+| `DATABRICKS_CLIENT_SECRET` | both, protected | yes |
+| `catalog` | both | yes |
+| `schema` | both | yes |
 
 ## `.gitlab-ci.yml`
 
@@ -28,7 +30,12 @@ validate:
   artifacts:
     paths: [bundle-validate.json]
   variables:
-    DATABRICKS_HOST: $DATABRICKS_HOST_STAGING
+    DATABRICKS_HOST: $DATABRICKS_HOST
+    DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+    DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+    DATABRICKS_BUNDLE_ENV: staging
+    BUNDLE_VAR_catalog: $catalog
+    BUNDLE_VAR_schema: $schema
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -38,9 +45,14 @@ deploy_staging:
     name: staging
   script:
     - databricks bundle validate --output json
-    - databricks bundle deploy -t staging
+    - databricks bundle deploy
   variables:
-    DATABRICKS_HOST: $DATABRICKS_HOST_STAGING
+    DATABRICKS_HOST: $DATABRICKS_HOST
+    DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+    DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+    DATABRICKS_BUNDLE_ENV: staging
+    BUNDLE_VAR_catalog: $catalog
+    BUNDLE_VAR_schema: $schema
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
@@ -51,9 +63,14 @@ deploy_prod:
     action: prepare
   script:
     - databricks bundle validate --output json
-    - databricks bundle deploy -t prod
+    - databricks bundle deploy
   variables:
-    DATABRICKS_HOST: $DATABRICKS_HOST_PROD
+    DATABRICKS_HOST: $DATABRICKS_HOST
+    DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+    DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+    DATABRICKS_BUNDLE_ENV: prod
+    BUNDLE_VAR_catalog: $catalog
+    BUNDLE_VAR_schema: $schema
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
       when: manual
@@ -62,4 +79,7 @@ deploy_prod:
 ## Notes
 
 - `when: manual` on `deploy_prod` enforces a click-to-approve gate.
-- Mark `DATABRICKS_TOKEN` as **Protected** so it's only injected on protected branches/tags.
+- Mark `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` as **Protected** so they are only injected on protected branches/tags.
+- Scope `DATABRICKS_HOST` to each GitLab environment so staging and prod use different workspace URLs.
+- `DATABRICKS_BUNDLE_ENV` is hardcoded per job and tells the CLI which target to use (replaces the `-t` flag).
+- `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` pass the `catalog` and `schema` variables into bundle variables via the `BUNDLE_VAR_` prefix convention.
