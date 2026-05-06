@@ -8,9 +8,11 @@ Reference: https://docs.databricks.com/aws/en/dev-tools/bundles/jobs-tutorial
 
 | Secret | Where used | Notes |
 |---|---|---|
-| `DATABRICKS_HOST_STAGING` | staging deploy | workspace URL |
-| `DATABRICKS_HOST_PROD` | prod deploy | workspace URL |
-| `DATABRICKS_TOKEN` *or* OIDC | both | prefer OIDC federation to an Azure AD / AWS IAM service principal |
+| `DATABRICKS_HOST` | all pipelines | workspace URL — store as an environment secret so staging and prod each have their own value |
+| `DATABRICKS_CLIENT_ID` | all pipelines | service principal application (client) ID |
+| `DATABRICKS_CLIENT_SECRET` | all pipelines | service principal client secret |
+| `catalog` | all pipelines | Unity Catalog catalog name |
+| `schema` | all pipelines | Unity Catalog schema name |
 
 ## `.github/workflows/pr_validate.yml`
 
@@ -31,8 +33,12 @@ jobs:
 
       - name: Validate bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_STAGING }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_BUNDLE_ENV: staging
+          BUNDLE_VAR_catalog: ${{ secrets.catalog }}
+          BUNDLE_VAR_schema: ${{ secrets.schema }}
         run: databricks bundle validate --output json | tee bundle-validate.json
 
       - uses: actions/upload-artifact@v4
@@ -61,15 +67,23 @@ jobs:
 
       - name: Validate bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_STAGING }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_BUNDLE_ENV: staging
+          BUNDLE_VAR_catalog: ${{ secrets.catalog }}
+          BUNDLE_VAR_schema: ${{ secrets.schema }}
         run: databricks bundle validate --output json
 
       - name: Deploy bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_STAGING }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle deploy -t staging
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_BUNDLE_ENV: staging
+          BUNDLE_VAR_catalog: ${{ secrets.catalog }}
+          BUNDLE_VAR_schema: ${{ secrets.schema }}
+        run: databricks bundle deploy
 ```
 
 ## `.github/workflows/deploy_to_prod.yml`
@@ -93,19 +107,29 @@ jobs:
 
       - name: Validate bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_BUNDLE_ENV: prod
+          BUNDLE_VAR_catalog: ${{ secrets.catalog }}
+          BUNDLE_VAR_schema: ${{ secrets.schema }}
         run: databricks bundle validate --output json
 
       - name: Deploy bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle deploy -t prod
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_BUNDLE_ENV: prod
+          BUNDLE_VAR_catalog: ${{ secrets.catalog }}
+          BUNDLE_VAR_schema: ${{ secrets.schema }}
+        run: databricks bundle deploy
 ```
 
 ## Notes
 
-- Use a GitHub `environment:` for `prod` so you can require manual approval / restrict to specific reviewers.
+- Use a GitHub `environment:` for `staging` and `prod` so each environment can hold its own `DATABRICKS_HOST` secret and you can require manual approval on prod.
 - Never run `databricks repos` in any of these workflows — bundle deploy handles workspace sync.
-- Token-based auth shown above; for OIDC swap `DATABRICKS_TOKEN` for `azure/login@v2` (or AWS equivalent) and let the CLI pick up federated credentials.
+- `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` authenticate as a service principal. Store both as repository secrets.
+- `DATABRICKS_BUNDLE_ENV` is hardcoded per pipeline and tells the CLI which target to use (replaces the `-t` flag).
+- `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` pass the `catalog` and `schema` secrets into bundle variables via the `BUNDLE_VAR_` prefix convention.

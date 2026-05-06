@@ -6,9 +6,11 @@
 
 | Variable |
 |---|
-| `DATABRICKS_HOST_STAGING` |
-| `DATABRICKS_HOST_PROD` |
-| `DATABRICKS_TOKEN` |
+| `DATABRICKS_HOST` — use context or per-environment variable to set different values for staging and prod |
+| `DATABRICKS_CLIENT_ID` |
+| `DATABRICKS_CLIENT_SECRET` |
+| `catalog` |
+| `schema` |
 
 ## `.circleci/config.yml`
 
@@ -36,7 +38,12 @@ jobs:
       - run:
           name: Validate bundle
           environment:
-            DATABRICKS_HOST: $DATABRICKS_HOST_STAGING
+            DATABRICKS_HOST: $DATABRICKS_HOST
+            DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+            DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+            DATABRICKS_BUNDLE_ENV: staging
+            BUNDLE_VAR_catalog: $catalog
+            BUNDLE_VAR_schema: $schema
           command: databricks bundle validate --output json | tee bundle-validate.json
       - store_artifacts:
           path: bundle-validate.json
@@ -48,10 +55,15 @@ jobs:
       - install-cli
       - run:
           environment:
-            DATABRICKS_HOST: $DATABRICKS_HOST_STAGING
+            DATABRICKS_HOST: $DATABRICKS_HOST
+            DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+            DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+            DATABRICKS_BUNDLE_ENV: staging
+            BUNDLE_VAR_catalog: $catalog
+            BUNDLE_VAR_schema: $schema
           command: |
             databricks bundle validate --output json
-            databricks bundle deploy -t staging
+            databricks bundle deploy
 
   deploy-prod:
     executor: ubuntu
@@ -60,10 +72,15 @@ jobs:
       - install-cli
       - run:
           environment:
-            DATABRICKS_HOST: $DATABRICKS_HOST_PROD
+            DATABRICKS_HOST: $DATABRICKS_HOST
+            DATABRICKS_CLIENT_ID: $DATABRICKS_CLIENT_ID
+            DATABRICKS_CLIENT_SECRET: $DATABRICKS_CLIENT_SECRET
+            DATABRICKS_BUNDLE_ENV: prod
+            BUNDLE_VAR_catalog: $catalog
+            BUNDLE_VAR_schema: $schema
           command: |
             databricks bundle validate --output json
-            databricks bundle deploy -t prod
+            databricks bundle deploy
 
 workflows:
   validate-and-deploy:
@@ -94,3 +111,6 @@ workflows:
 
 - `type: approval` on `hold-prod` is the manual gate.
 - CircleCI requires explicit tag filters on every job in a tag-triggered workflow — copy the `filters:` block.
+- Set `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`, `catalog`, and `schema` as project environment variables in CircleCI project settings.
+- `DATABRICKS_BUNDLE_ENV` is hardcoded per job and tells the CLI which target to use (replaces the `-t` flag).
+- `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` pass the `catalog` and `schema` variables into bundle variables via the `BUNDLE_VAR_` prefix convention.

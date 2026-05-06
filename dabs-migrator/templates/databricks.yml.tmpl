@@ -8,23 +8,20 @@ include:
   - resources/**/*.yml
 
 variables:
-  workspace_host:
-    description: Databricks workspace URL for the active target.
-  warehouse_id:
-    description: Default SQL warehouse ID for SQL tasks and alerts.
-    default: ""
-  notification_email:
-    description: Email for job failure notifications.
-    default: ""
+  catalog:
+    description: Default catalog
+    default: "dev"
+
+  schema:
+    description: Default schema
+    default: "my_project_bronze"
 
 targets:
   dev:
     mode: development
     default: true
     workspace:
-      host: ${var.workspace_host}
-    variables:
-      workspace_host: https://<dev-workspace-host>.cloud.databricks.com
+      host: https://<dev-workspace-host>.cloud.databricks.com
 
   staging:
     mode: production

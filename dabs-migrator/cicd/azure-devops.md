@@ -6,9 +6,11 @@ Generates three pipelines under `.azure-pipelines/`.
 
 | Variable | Notes |
 |---|---|
-| `DATABRICKS_HOST_STAGING` | workspace URL |
-| `DATABRICKS_HOST_PROD` | workspace URL |
-| `DATABRICKS_TOKEN` | secret variable, or use workload identity federation |
+| `DATABRICKS_HOST` | workspace URL — use environment-scoped variable groups or pipeline variables to set a different value per environment |
+| `DATABRICKS_CLIENT_ID` | secret variable, service principal application (client) ID |
+| `DATABRICKS_CLIENT_SECRET` | secret variable, service principal client secret |
+| `catalog` | secret variable, Unity Catalog catalog name |
+| `schema` | secret variable, Unity Catalog schema name |
 
 ## `.azure-pipelines/pr-validate.yml`
 
@@ -31,8 +33,12 @@ steps:
   - script: databricks bundle validate --output json | tee bundle-validate.json
     displayName: Validate bundle
     env:
-      DATABRICKS_HOST: $(DATABRICKS_HOST_STAGING)
-      DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+      DATABRICKS_HOST: $(DATABRICKS_HOST)
+      DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+      DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+      DATABRICKS_BUNDLE_ENV: staging
+      BUNDLE_VAR_catalog: $(catalog)
+      BUNDLE_VAR_schema: $(schema)
 
   - publish: bundle-validate.json
     artifact: bundle-validate
@@ -67,13 +73,21 @@ stages:
                 - script: databricks bundle validate --output json
                   displayName: Validate bundle
                   env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_STAGING)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
-                - script: databricks bundle deploy -t staging
+                    DATABRICKS_HOST: $(DATABRICKS_HOST)
+                    DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+                    DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+                    DATABRICKS_BUNDLE_ENV: staging
+                    BUNDLE_VAR_catalog: $(catalog)
+                    BUNDLE_VAR_schema: $(schema)
+                - script: databricks bundle deploy
                   displayName: Deploy bundle
                   env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_STAGING)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+                    DATABRICKS_HOST: $(DATABRICKS_HOST)
+                    DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+                    DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+                    DATABRICKS_BUNDLE_ENV: staging
+                    BUNDLE_VAR_catalog: $(catalog)
+                    BUNDLE_VAR_schema: $(schema)
 ```
 
 ## `.azure-pipelines/deploy-prod.yml`
@@ -105,16 +119,26 @@ stages:
                 - script: databricks bundle validate --output json
                   displayName: Validate bundle
                   env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_PROD)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
-                - script: databricks bundle deploy -t prod
+                    DATABRICKS_HOST: $(DATABRICKS_HOST)
+                    DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+                    DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+                    DATABRICKS_BUNDLE_ENV: prod
+                    BUNDLE_VAR_catalog: $(catalog)
+                    BUNDLE_VAR_schema: $(schema)
+                - script: databricks bundle deploy
                   displayName: Deploy bundle
                   env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_PROD)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+                    DATABRICKS_HOST: $(DATABRICKS_HOST)
+                    DATABRICKS_CLIENT_ID: $(DATABRICKS_CLIENT_ID)
+                    DATABRICKS_CLIENT_SECRET: $(DATABRICKS_CLIENT_SECRET)
+                    DATABRICKS_BUNDLE_ENV: prod
+                    BUNDLE_VAR_catalog: $(catalog)
+                    BUNDLE_VAR_schema: $(schema)
 ```
 
 ## Notes
 
 - Configure approvals on the `prod` Environment in Azure DevOps Project Settings → Environments.
-- Prefer **workload identity federation** (Azure DevOps service connection → Azure AD app) over storing `DATABRICKS_TOKEN`.
+- Mark `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`, `catalog`, and `schema` as secret in the variable group.
+- `DATABRICKS_BUNDLE_ENV` is hardcoded per pipeline and tells the CLI which target to use (replaces the `-t` flag).
+- `BUNDLE_VAR_catalog` and `BUNDLE_VAR_schema` pass the `catalog` and `schema` variables into bundle variables via the `BUNDLE_VAR_` prefix convention.
