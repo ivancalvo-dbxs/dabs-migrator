@@ -28,7 +28,7 @@ jobs:
           echo "tag=$next" >> "$GITHUB_OUTPUT"
 
       - name: Create zip archive
-        run: zip -r dabs-migrator-${{ steps.version.outputs.tag }}.zip dabs-migrator/dabs-migrator/
+        run: zip -r dabs-migrator-${{ steps.version.outputs.tag }}.zip dabs-migrator/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
