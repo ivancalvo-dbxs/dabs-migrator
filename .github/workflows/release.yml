@@ -29,7 +29,7 @@ jobs:
 
       - name: Create zip archive
         run: zip -r "${{ github.workspace }}/dabs-migrator-${{ steps.version.outputs.tag }}.zip" .
-        working-directory: dabs-migrator/dabs-migrator
+        working-directory: dabs-migrator/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
