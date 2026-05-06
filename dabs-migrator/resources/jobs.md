@@ -17,7 +17,7 @@ Job API: https://docs.databricks.com/api/workspace/jobs/create
 ## Common variations
 
 - **Multi-task** — add more entries to `tasks:`, use `depends_on:` for ordering.
-- **SQL task** — replace `notebook_task` with `sql_task: { warehouse_id: ${var.warehouse_id}, file: { path: ../../src/{{ job_name }}/query.sql } }`.
+- **SQL task** — replace `notebook_task` with `sql_task: { warehouse_id: <warehouse_id>, file: { path: ../../src/{{ job_name }}/query.sql } }`.
 - **Python wheel task** — `python_wheel_task: { package_name: ..., entry_point: ... }` with the wheel in `environments`.
 - **Triggered (no schedule)** — omit the `schedule:` block; trigger via API or another job.
 

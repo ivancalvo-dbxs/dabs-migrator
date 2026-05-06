@@ -33,8 +33,9 @@ Production deploys run through CI only — never `databricks bundle deploy -t pr
 Before the first deploy, replace these in `databricks.yml`:
 
 - `${var.workspace_host}` for each target
+- `${var.catalog}` — the default Unity Catalog catalog (defaults to `dev`)
+- `${var.schema}` — the default Unity Catalog schema
 - `${var.staging_sp_app_id}` and `${var.prod_sp_app_id}` if using service principals
-- `${var.warehouse_id}` if any SQL tasks reference a warehouse
 
 ## CI/CD secrets
 

@@ -8,15 +8,46 @@ When you invoke it from Genie Code, `dabs-migrator` reads the assets you name fr
 
 ### Supported assets (23 resource types)
 
-Jobs, Pipelines (SDP/DLT), Dashboards (Lakeview), Apps, Clusters, SQL Warehouses, MLflow Experiments, Registered Models (Unity Catalog), Model Serving Endpoints, Alerts, Catalogs, Schemas, Volumes, External Locations, Quality Monitors, Secret Scopes, Database Instances, Database Catalogs, Synced Database Tables, Postgres Projects/Branches/Endpoints, and more.
+| Asset | CLI version |
+|---|---|
+| Alerts | v0.298.0 |
+| Apps | v0.298.0 |
+| Catalogs | v0.298.0 |
+| Clusters | v0.298.0 |
+| Dashboards (Lakeview) | v0.298.0 |
+| Database Catalogs | v0.298.0 |
+| Database Instances | v0.298.0 |
+| External Locations | v0.298.0 |
+| Jobs | v0.298.0 |
+| MLflow Experiments | v0.298.0 |
+| MLflow Models (legacy) | v0.298.0 |
+| Model Serving Endpoints | v0.298.0 |
+| Pipelines (SDP/DLT) | v0.298.0 |
+| Postgres Branches | v0.298.0 |
+| Postgres Endpoints | v0.298.0 |
+| Postgres Projects | v0.298.0 |
+| Quality Monitors | v0.298.0 |
+| Registered Models (Unity Catalog) | v0.298.0 |
+| Schemas | v0.298.0 |
+| Secret Scopes | v0.298.0 |
+| SQL Warehouses | v0.298.0 |
+| Synced Database Tables | v0.298.0 |
+| Volumes | v0.298.0 |
 
 ### Supported CI/CD tools
 
-GitHub Actions (default), Azure DevOps Pipelines, GitLab CI, Bitbucket Pipelines, Jenkins, CircleCI.
+| Tool | Default |
+|---|---|
+| GitHub Actions | Yes |
+| Azure DevOps Pipelines | |
+| GitLab CI | |
+| Bitbucket Pipelines | |
+| Jenkins | |
+| CircleCI | |
 
 ## Two modes of operation
 
-### Start fresh (greenfield)
+### Start fresh
 
 You have assets in the Databricks UI and want to migrate them into a brand-new DABs repository. Genie will:
 

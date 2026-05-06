@@ -56,15 +56,15 @@ If any of these are missing, ask once before generating; default to GitHub Actio
 ## Workflow
 
 1. **Parse inputs.** Extract project name, the `<type>:<name>` resource list, and CI/CD tool. Confirm any missing required fields before proceeding.
-2. **Detect mode — greenfield vs. incremental.** Check whether `databricks.yml` already exists in the target project folder.
-   - **Greenfield** (file absent): proceed through all steps below.
+2. **Detect mode — fresh start vs. incremental.** Check whether `databricks.yml` already exists in the target project folder.
+   - **Fresh start** (file absent): proceed through all steps below.
    - **Incremental** (file present): the project already exists. Skip steps 3, 5, and 6. Go directly to step 4 for the new resources only. Never overwrite existing files — if a resource file for the named asset already exists, report a conflict and stop for that asset.
-3. **Create root folder** named after the project and **generate `databricks.yml`** from `templates/databricks.yml.tmpl` — fills in `bundle.name`, `include:` globs, and `targets` (dev/staging/prod with `${var.workspace_host}` placeholder per target). *(Greenfield only.)*
+3. **Create root folder** named after the project and **generate `databricks.yml`** from `templates/databricks.yml.tmpl` — fills in `bundle.name`, `include:` globs, and `targets` (dev/staging/prod with `${var.workspace_host}` placeholder per target). *(Fresh start only.)*
 4. **For each resource** in the input list, open `resources/<type>.md` and use its `## Complete schema reference` as the authoritative field catalogue. Build `resources/<type_plural>/<name>.yml` by mapping the asset's **actual existing attributes** onto the schema — include only the fields the asset uses, using the correct field names and types from the schema. Do not copy the complete schema verbatim and do not invent placeholder values for fields the asset does not have. If the resource type owns source code (jobs, pipelines, apps, dashboards), also populate `src/<name>/`:
    - **If migrating an existing asset** (the default case — the user named a real workspace asset): pull the original notebook(s) / script(s) and copy their content **verbatim** into `src/<name>/`. Preserve filenames, structure, comments, and logic exactly. Do **not** add headers like `# Originally sourced from: <path>` or replace any block with `# TODO: Replace with actual ingestion logic`. See the corresponding hard rule below.
    - **If starting from scratch** (only when the user explicitly says so): create minimal stub files and populate only the required fields (marked `REQUIRED` in the schema reference).
-5. **Generate CI/CD files** from the user's chosen tool's reference under `cicd/<tool>.md`. Always emit at least: PR validation pipeline, staging deploy pipeline, prod deploy pipeline. All pipelines must follow the **CI/CD action contract** below. *(Greenfield only.)*
-6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_<asset>.py` stubs, and a minimal `README.md` documenting how to deploy. *(Greenfield only — in incremental mode, only add `tests/test_<asset>.py` for the new resources.)*
+5. **Generate CI/CD files** from the user's chosen tool's reference under `cicd/<tool>.md`. Always emit at least: PR validation pipeline, staging deploy pipeline, prod deploy pipeline. All pipelines must follow the **CI/CD action contract** below. *(Fresh start only.)*
+6. **Write supporting files**: `requirements.txt` (databricks-cli, pytest, ruff baseline), `.gitignore` (Python + DABs `.databricks/`), `tests/test_<asset>.py` stubs, and a minimal `README.md` documenting how to deploy. *(Fresh start only — in incremental mode, only add `tests/test_<asset>.py` for the new resources.)*
 7. **Report** what was generated: tree of created/modified files. In incremental mode, explicitly list which files were added and confirm that no existing files were touched.
 
 ## CI/CD action contract
@@ -83,7 +83,7 @@ Reference: [Databricks bundle jobs tutorial](https://docs.databricks.com/aws/en/
 
 - **Never** generate, recommend, or run any `databricks repos` command. Bundle deploys do not need or use the Repos API; mixing them creates dual sources of truth. If the user asks for Git sync via Repos, refuse and point them at bundle deploys instead.
 - **Never** commit secrets, workspace tokens, or service principal credentials into generated YAML or workflow files. Use the CI tool's secret store (`${{ secrets.* }}` for GitHub, variable groups for Azure DevOps, etc.) and Databricks secret scopes (`{{secrets/scope/key}}`) for runtime.
-- **Never** hardcode workspace hosts, cluster IDs, warehouse IDs, or catalog names in resource YAML. Use bundle variables (`${var.warehouse_id}`) and override per target.
+- **Never** hardcode workspace hosts, cluster IDs, warehouse IDs, or catalog names in resource YAML. Use bundle variables (`${var.catalog}`, `${var.schema}`, etc.) and override per target.
 - **Never** put more than one resource definition per YAML file in `resources/`. One asset, one file.
 - **Never** deploy to `prod` from a dev machine. Prod deploys go through CI only.
 - **Never** use `../src/...` in resource YAML paths. Resource files live at `resources/<type>/<name>.yml` (two levels under the bundle root), so paths to `src/` must be `../../src/<name>/...`. Using a single `..` resolves to `resources/src/...` and the deploy fails.
@@ -141,7 +141,7 @@ One reference doc per resource type lives under `resources/`. Read the relevant 
 
 ## Example interactions
 
-### Greenfield
+### Fresh start
 
 **User:** "I want to migrate @my_job_1 and @my_pipeline_1 to DABs, generate the project and for the CI/CD tool use GitHub Actions."
 

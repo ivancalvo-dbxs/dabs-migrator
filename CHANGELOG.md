@@ -10,13 +10,13 @@ Entries are reverse-chronological. Each entry: date, what changed, **why** (with
 
 **Change:** Workflow step 2 now detects whether `databricks.yml` already exists. If it does, the skill enters **incremental mode** — it only generates new resource YAML files, source code, and test stubs for the requested assets, skipping root folder creation, `databricks.yml`, CI/CD pipelines, and supporting files. A conflict is reported if a resource file for the named asset already exists.
 
-**Why:** Previously every invocation assumed a greenfield scaffold. If a user migrated job_1 and warehouse_1 first, then later wanted to add alert_1, the skill would regenerate the entire project from scratch — overwriting CI/CD files, `databricks.yml`, and other resources. Incremental mode makes "add a resource" a safe, additive operation.
+**Why:** Previously every invocation assumed a fresh start scaffold. If a user migrated job_1 and warehouse_1 first, then later wanted to add alert_1, the skill would regenerate the entire project from scratch — overwriting CI/CD files, `databricks.yml`, and other resources. Incremental mode makes "add a resource" a safe, additive operation.
 
 **Where:**
-- `SKILL.md` workflow step 2 — new greenfield-vs-incremental branching logic.
-- `SKILL.md` steps 3, 5, 6 — tagged *(Greenfield only.)* with incremental-mode exceptions noted.
+- `SKILL.md` workflow step 2 — new fresh start-vs-incremental branching logic.
+- `SKILL.md` steps 3, 5, 6 — tagged *(Fresh start only.)* with incremental-mode exceptions noted.
 - `SKILL.md` step 7 — reporting adjusted for incremental mode.
-- `SKILL.md` example interactions — added an incremental example alongside the existing greenfield one.
+- `SKILL.md` example interactions — added an incremental example alongside the existing fresh start one.
 
 ---
 
